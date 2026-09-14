@@ -83,7 +83,15 @@ def get_gspread_client():
         "https://www.googleapis.com/auth/drive"
     ]
     if "kunci_json" in st.secrets:
-        key_dict = json.loads(st.secrets["kunci_json"])
+        kunci = st.secrets["kunci_json"]
+        if isinstance(kunci, str):
+            try:
+                key_dict = json.loads(kunci)
+            except Exception:
+                key_dict = json.loads(kunci, strict=False)
+        else:
+            # Jika di secrets disimpan sebagai dictionary/tabel toml
+            key_dict = dict(kunci)
         creds = ServiceAccountCredentials.from_json_keyfile_dict(
             key_dict, scope)
     else:
