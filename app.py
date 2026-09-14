@@ -1,3 +1,5 @@
+import json
+import os
 import streamlit as st
 import pandas as pd
 from datetime import date
@@ -80,8 +82,14 @@ def get_gspread_client():
         "https://spreadsheets.google.com/feeds",
         "https://www.googleapis.com/auth/drive"
     ]
-    creds = ServiceAccountCredentials.from_json_keyfile_name(
-        "kunci.json", scope)
+    if "kunci_json" in st.secrets:
+        key_dict = json.loads(st.secrets["kunci_json"])
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(
+            key_dict, scope)
+    else:
+        creds = ServiceAccountCredentials.from_json_keyfile_name(
+            "kunci.json", scope)
+
     client = gspread.authorize(creds)
     return client
 
