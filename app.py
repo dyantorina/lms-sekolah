@@ -143,11 +143,12 @@ class PDFLMS(FPDF):
         self.cell(
             0, 4, "Jl. Veteran No. 1A, Babakan, Kec. Tangerang, Kota Tangerang, Banten 15118", ln=True, align="C")
 
-        # Garis Kop Ganda
+        # Jarak ke bawah sebelum garis kop (turun ke koordinat Y = 32 dan 33)
+        self.ln(3)
         self.set_line_width(0.7)
-        self.line(10, 28, 200, 28)
+        self.line(10, 32, 200, 32)
         self.set_line_width(0.2)
-        self.line(10, 29, 200, 29)
+        self.line(10, 33, 200, 33)
         self.ln(6)
 
     def footer(self):
