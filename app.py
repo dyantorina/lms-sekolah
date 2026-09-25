@@ -5,6 +5,7 @@ import pandas as pd
 from datetime import date
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+from fpdf import FPDF
 
 # --- KONFIGURASI HALAMAN ---
 st.set_page_config(page_title="LMS Sekolah - Bu Rina",
@@ -90,7 +91,6 @@ def get_gspread_client():
             except Exception:
                 key_dict = json.loads(kunci, strict=False)
         else:
-            # Jika di secrets disimpan sebagai dictionary/tabel toml
             key_dict = dict(kunci)
         creds = ServiceAccountCredentials.from_json_keyfile_dict(
             key_dict, scope)
@@ -128,6 +128,160 @@ def append_data(sheet_name, row_values):
         return False
 
 
+# ==============================================================================
+# ENGINE CETAK LAPORAN PDF (KOP RESMI SMKN 4 TANGERANG)
+# ==============================================================================
+class PDFLMS(FPDF):
+    def header(self):
+        self.set_font("Helvetica", "B", 12)
+        self.cell(0, 5, "PEMERINTAH PROVINSI BANTEN", ln=True, align="C")
+        self.set_font("Helvetica", "B", 11)
+        self.cell(0, 5, "DINAS PENDIDIKAN DAN KEBUDAYAAN", ln=True, align="C")
+        self.set_font("Helvetica", "B", 13)
+        self.cell(0, 6, "SMK NEGERI 4 TANGERANG", ln=True, align="C")
+        self.set_font("Helvetica", "", 8)
+        self.cell(
+            0, 4, "Jl. Veteran No. 1A, Babakan, Kec. Tangerang, Kota Tangerang, Banten 15118", ln=True, align="C")
+
+        # Garis Kop Ganda
+        self.set_line_width(0.7)
+        self.line(10, 28, 200, 28)
+        self.set_line_width(0.2)
+        self.line(10, 29, 200, 29)
+        self.ln(6)
+
+    def footer(self):
+        self.set_y(-15)
+        self.set_font("Helvetica", "I", 8)
+        self.cell(
+            0, 10, f"Sistem LMS SMKN 4 Tangerang | Halaman {self.page_no()}", align="R")
+
+
+def buat_pdf_harian(nama_guru, kelas, mapel, jam_ke, tanggal, materi, catatan):
+    pdf = PDFLMS(orientation="P", unit="mm", format="A4")
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 6, "JURNAL & AGENDA PEMBELAJARAN HARIAN", ln=True, align="C")
+    pdf.ln(4)
+
+    pdf.set_font("Helvetica", "", 10)
+    info = [
+        ("Nama Guru", nama_guru),
+        ("Mata Pelajaran", mapel),
+        ("Kelas / Tingkat", kelas),
+        ("Jam Pelajaran Ke-", str(jam_ke)),
+        ("Hari / Tanggal", str(tanggal)),
+    ]
+    for label, val in info:
+        pdf.cell(42, 6, label, border=0)
+        pdf.cell(5, 6, ":", border=0)
+        pdf.set_font("Helvetica", "B" if label in [
+                     "Nama Guru", "Kelas / Tingkat"] else "", 10)
+        pdf.cell(0, 6, str(val), border=0, ln=True)
+        pdf.set_font("Helvetica", "", 10)
+
+    pdf.ln(3)
+    pdf.set_fill_color(240, 240, 240)
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.cell(0, 6, " MATERI / CAPAIAN PEMBELAJARAN:", ln=True, fill=True)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.multi_cell(0, 6, materi if materi else "-", border=1)
+
+    pdf.ln(3)
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.cell(0, 6, " CATATAN PERKEMBANGAN / PENUGASAN SISWA:", ln=True, fill=True)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.multi_cell(0, 6, catatan if catatan else "-", border=1)
+
+    pdf.ln(12)
+    pdf.cell(115, 5, "", border=0)
+    pdf.cell(0, 5, f"Tangerang, {tanggal}", ln=True, align="C")
+    pdf.cell(115, 5, "", border=0)
+    pdf.cell(0, 5, "Guru Mata Pelajaran,", ln=True, align="C")
+    pdf.ln(18)
+    pdf.cell(115, 5, "", border=0)
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.cell(0, 5, nama_guru, ln=True, align="C")
+
+    return bytes(pdf.output())
+
+
+def buat_pdf_rekap_bulanan(df_bulan, nama_guru, mapel, kelas, bulan_nama, tahun):
+    pdf = PDFLMS(orientation="P", unit="mm", format="A4")
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(
+        0, 6, f"REKAPITULASI JURNAL MENGAJAR BULAN {bulan_nama.upper()} {tahun}", ln=True, align="C")
+    pdf.ln(4)
+
+    pdf.set_font("Helvetica", "", 9)
+    pdf.cell(35, 5, "Guru Mata Pelajaran", border=0)
+    pdf.cell(5, 5, f": {nama_guru}", border=0)
+    pdf.cell(60, 5, "", border=0)
+    pdf.cell(25, 5, "Kelas", border=0)
+    pdf.cell(0, 5, f": {kelas}", border=0, ln=True)
+
+    pdf.cell(35, 5, "Mata Pelajaran", border=0)
+    pdf.cell(5, 5, f": {mapel}", border=0)
+    pdf.cell(60, 5, "", border=0)
+    pdf.cell(25, 5, "Periode", border=0)
+    pdf.cell(0, 5, f": {bulan_nama} {tahun}", border=0, ln=True)
+    pdf.ln(3)
+
+    # Header Tabel
+    pdf.set_fill_color(225, 235, 245)
+    pdf.set_font("Helvetica", "B", 8)
+    pdf.cell(8, 7, "No", border=1, align="C", fill=True)
+    pdf.cell(22, 7, "Tanggal", border=1, align="C", fill=True)
+    pdf.cell(18, 7, "Jam Ke-", border=1, align="C", fill=True)
+    pdf.cell(73, 7, "Materi / Capaian Pembelajaran",
+             border=1, align="C", fill=True)
+    pdf.cell(69, 7, "Catatan / Penugasan", border=1, align="C", fill=True)
+    pdf.ln(7)
+
+    # Isi Tabel Rekap
+    pdf.set_font("Helvetica", "", 8)
+    no = 1
+    for _, row in df_bulan.iterrows():
+        tgl_str = str(row.iloc[0]) if len(row) > 0 else ""
+        jam_str = str(row.iloc[5]) if len(row) > 5 else "-"
+        mat_str = str(row.iloc[3])[:75] if len(row) > 3 else "-"
+        cat_str = str(row.iloc[4])[:70] if len(row) > 4 else "-"
+
+        pdf.cell(8, 6, str(no), border=1, align="C")
+        pdf.cell(22, 6, tgl_str, border=1, align="C")
+        pdf.cell(18, 6, jam_str, border=1, align="C")
+        pdf.cell(73, 6, f" {mat_str}", border=1)
+        pdf.cell(69, 6, f" {cat_str}", border=1)
+        pdf.ln(6)
+        no += 1
+
+    pdf.ln(8)
+    pdf.set_font("Helvetica", "", 9)
+    col_w = 95
+    pdf.cell(col_w, 5, "Mengetahui,", align="C")
+    pdf.cell(
+        col_w, 5, f"Tangerang, 30 {bulan_nama} {tahun}", align="C", ln=True)
+    pdf.cell(col_w, 5, "Kepala SMK Negeri 4 Tangerang", align="C")
+    pdf.cell(col_w, 5, "Guru Mata Pelajaran,", align="C", ln=True)
+
+    pdf.ln(18)
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.cell(
+        col_w, 5, "( ................................................ )", align="C")
+    pdf.cell(col_w, 5, f"{nama_guru}", align="C", ln=True)
+    pdf.set_font("Helvetica", "", 8)
+    pdf.cell(col_w, 4, "NIP. ............................................", align="C")
+    pdf.cell(col_w, 4, "NIP. ............................................",
+             align="C", ln=True)
+
+    return bytes(pdf.output())
+
+
 # --- SIDEBAR NAVIGASI ---
 st.sidebar.title("🏫 LMS SMK (Cloud Drive)")
 role = st.sidebar.radio("Masuk Sebagai:", ["Guru", "Siswa"])
@@ -144,26 +298,30 @@ if role == "Guru":
         "Bank Soal & Nilai Ujian"
     ])
 
-    # --- MODUL 1: AGENDA GURU ---
+    # --- MODUL 1: AGENDA GURU & CETAK PDF ---
     if menu_guru == "Jurnal & Agenda Mengajar":
         st.header("📝 Agenda & Jurnal Guru (Tersimpan di Google Drive)")
 
-        with st.form("form_agenda", clear_on_submit=True):
+        with st.form("form_agenda", clear_on_submit=False):
             col1, col2 = st.columns(2)
             with col1:
+                guru_nama = st.text_input(
+                    "Nama Guru", value="Rina Nurmaladewi, S.Pd")
                 tgl_agenda = st.date_input("Tanggal", value=date.today())
                 mapel_agenda = st.selectbox("Mata Pelajaran", DAFTAR_MAPEL)
                 kelas_agenda = st.selectbox("Kelas", DAFTAR_KELAS)
+                jam_agenda = st.selectbox(
+                    "Jam Pelajaran Ke-", ["1 - 2", "3 - 4", "5 - 6", "7 - 8", "9 - 10"])
             with col2:
                 capaian = st.text_area(
-                    "Materi / Capaian Pembelajaran", placeholder="Contoh: Logika Pemrograman / Eksponen")
-                catatan = st.text_input(
-                    "Catatan Khusus / Tugas Siswa", placeholder="Contoh: Diskusi kelompok, latihan mandiri")
+                    "Materi / Capaian Pembelajaran", placeholder="Contoh: Logika Pemrograman / Eksponen", height=130)
+                catatan = st.text_area(
+                    "Catatan Khusus / Tugas Siswa", placeholder="Contoh: Diskusi kelompok, latihan mandiri", height=100)
 
             simpan_agenda = st.form_submit_button("Simpan Agenda Mengajar")
             if simpan_agenda:
                 berhasil = append_data("agenda_guru", [
-                    str(tgl_agenda), mapel_agenda, kelas_agenda, capaian, catatan
+                    str(tgl_agenda), mapel_agenda, kelas_agenda, capaian, catatan, jam_agenda, guru_nama
                 ])
                 if berhasil:
                     st.success(
@@ -175,6 +333,80 @@ if role == "Guru":
             st.dataframe(df_agenda.iloc[::-1], use_container_width=True)
         else:
             st.info("Belum ada riwayat agenda yang tercatat.")
+
+        # --- FITUR CETAK LAPORAN PDF ---
+        st.write("---")
+        st.subheader("🖨️ Cetak Dokumen PDF Resmi")
+        tab_harian, tab_bulanan = st.tabs(
+            ["Cetak Agenda Hari Ini", "Cetak Rekap Bulanan per Kelas"])
+
+        with tab_harian:
+            st.caption(
+                "Cetak lembar agenda yang sedang aktif di formulir atas lengkap dengan kop sekolah.")
+            if st.button("Siapkan PDF Agenda Hari Ini"):
+                pdf_bytes_harian = buat_pdf_harian(
+                    nama_guru=guru_nama,
+                    kelas=kelas_agenda,
+                    mapel=mapel_agenda,
+                    jam_ke=jam_agenda,
+                    tanggal=tgl_agenda,
+                    materi=capaian,
+                    catatan=catatan
+                )
+                st.download_button(
+                    label="📄 Unduh PDF Agenda Hari Ini",
+                    data=pdf_bytes_harian,
+                    file_name=f"Agenda_{kelas_agenda}_{tgl_agenda}.pdf",
+                    mime="application/pdf"
+                )
+
+        with tab_bulanan:
+            st.caption(
+                "Menarik riwayat mengajar dari Google Sheets dan menyusun rekap bulanan.")
+            c_kls, c_bln, c_thn = st.columns(3)
+            pilih_kls_rekap = c_kls.selectbox(
+                "Pilih Kelas", DAFTAR_KELAS, key="rekap_kls")
+            daftar_bulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni",
+                            "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
+            pilih_bln_rekap = c_bln.selectbox(
+                "Pilih Bulan", daftar_bulan, index=date.today().month - 1)
+            tahun_rekap = c_thn.number_input(
+                "Tahun", min_value=2024, max_value=2030, value=date.today().year)
+
+            if st.button("Tarik & Susun Rekap Bulanan"):
+                if not df_agenda.empty:
+                    bulan_angka = f"{daftar_bulan.index(pilih_bln_rekap) + 1:02d}"
+                    kolom_tgl = df_agenda.columns[0]
+                    kolom_kls = df_agenda.columns[2]
+
+                    df_filter = df_agenda[
+                        (df_agenda[kolom_kls].astype(str) == str(pilih_kls_rekap)) &
+                        (df_agenda[kolom_tgl].astype(str).str.contains(
+                            f"-{bulan_angka}-", na=False))
+                    ]
+
+                    if not df_filter.empty:
+                        pdf_bytes_rekap = buat_pdf_rekap_bulanan(
+                            df_bulan=df_filter,
+                            nama_guru=guru_nama,
+                            mapel=mapel_agenda,
+                            kelas=pilih_kls_rekap,
+                            bulan_nama=pilih_bln_rekap,
+                            tahun=tahun_rekap
+                        )
+                        st.success(
+                            f"Ditemukan {len(df_filter)} riwayat pertemuan untuk {pilih_kls_rekap}!")
+                        st.download_button(
+                            label=f"📊 Unduh Rekap PDF {pilih_bln_rekap} {tahun_rekap}",
+                            data=pdf_bytes_rekap,
+                            file_name=f"Rekap_{pilih_kls_rekap}_{pilih_bln_rekap}_{tahun_rekap}.pdf",
+                            mime="application/pdf"
+                        )
+                    else:
+                        st.warning(
+                            f"Belum ada agenda mengajar yang tersimpan untuk {pilih_kls_rekap} pada periode {pilih_bln_rekap} {tahun_rekap}.")
+                else:
+                    st.info("Basis data riwayat agenda di cloud masih kosong.")
 
     # --- MODUL 2: PRESENSI SISWA ---
     elif menu_guru == "Presensi Siswa":
@@ -273,7 +505,7 @@ if role == "Guru":
                 op_c = c1.text_input("Pilihan C")
                 op_d = c2.text_input("Pilihan D")
                 kunci = st.selectbox("Kunci Jawaban Benar", [
-                                     "A", "B", "C", "D"])
+                    "A", "B", "C", "D"])
 
                 simpan_soal = st.form_submit_button(
                     "Simpan Soal ke Google Sheets")
@@ -371,7 +603,6 @@ else:
 
                         skor_akhir = round((benar / len(soal_aktif)) * 100, 2)
 
-                        # Simpan hasil ujian ke cloud Google Sheets
                         append_data("nilai_ujian", [
                             nama_siswa, kelas_siswa, mapel_siswa, topik_pilihan, skor_akhir, str(
                                 date.today())
