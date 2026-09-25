@@ -111,8 +111,19 @@ def get_worksheet(sheet_name):
 def read_data(sheet_name):
     try:
         ws = get_worksheet(sheet_name)
-        records = ws.get_all_records()
-        return pd.DataFrame(records)
+        data = ws.get_all_values()
+        if len(data) > 1:
+            headers = data[0]
+            # Tangani jika ada header yang kosong agar tidak duplicate error
+            headers = [
+                h if h != "" else f"Kolom_{i+1}" for i, h in enumerate(headers)]
+            return pd.DataFrame(data[1:], columns=headers)
+        elif len(data) == 1:
+            headers = [
+                h if h != "" else f"Kolom_{i+1}" for i, h in enumerate(data[0])]
+            return pd.DataFrame(columns=headers)
+        else:
+            return pd.DataFrame()
     except Exception as e:
         st.error(f"Gagal membaca data dari Google Sheets: {e}")
         return pd.DataFrame()
