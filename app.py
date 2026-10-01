@@ -24,7 +24,7 @@ DATA_SISWA_KELAS = {
         "ARIYA PRATAMA", "AZKA ZHAFIF ELFREDA", "AZRIL HAETAMI", "FATHIR RIZKI RAMADHAN",
         "GHALY ALFATH YUSRA", "HAFIID NAJAMUDIN AGUS", "ILHAM SYAHIN KAILANI",
         "IVANUEL YUWARESTIAN ADHI PRAMANA", "KHAFID SENJA PAMUNGKAS", "KRISNANDA AJI FABIAN",
-        "MALKA FIRDAUS GUNAWAN", "MATAHARI TERBIT", "MEDISON PUTRA TAUFIK", "MOHAMAD FAUZAN",
+        "MALKA FIRDAUS GUNAWAN", "MEDISON PUTRA TAUFIK", "MOHAMAD FAUZAN",
         "MUHAMAD MAULANA ALFARIS", "MUHAMAD RIFALDI", "MUHAMMAD ADIB BUSYR", "MUHAMMAD ARKA ARRIZIQ",
         "MUHAMMAD FAHZAN ARSYADI", "MUHAMMAD FERO FERIZKO", "MUHAMMAD LINTANG AQSHAFAIRUS",
         "MUHAMMAD MAHBUB MAULUDY", "MUHAMMAD NUR FADILAH", "MUHAMMAD RAYHAN BAIHAQI",
@@ -76,7 +76,6 @@ DAFTAR_KELAS = list(DATA_SISWA_KELAS.keys())
 # --- KONEKSI GOOGLE SHEETS CLOUD ---
 SHEET_TITLE = "DATABASE_LMS_SEKOLAH"
 
-
 @st.cache_resource
 def get_gspread_client():
     scope = [
@@ -101,12 +100,10 @@ def get_gspread_client():
     client = gspread.authorize(creds)
     return client
 
-
 def get_worksheet(sheet_name):
     client = get_gspread_client()
     sh = client.open(SHEET_TITLE)
     return sh.worksheet(sheet_name)
-
 
 def read_data(sheet_name):
     try:
@@ -114,7 +111,6 @@ def read_data(sheet_name):
         data = ws.get_all_values()
         if len(data) > 1:
             headers = data[0]
-            # Tangani jika ada header yang kosong agar tidak duplicate error
             headers = [
                 h if h != "" else f"Kolom_{i+1}" for i, h in enumerate(headers)]
             return pd.DataFrame(data[1:], columns=headers)
@@ -128,7 +124,6 @@ def read_data(sheet_name):
         st.error(f"Gagal membaca data dari Google Sheets: {e}")
         return pd.DataFrame()
 
-
 def append_data(sheet_name, row_values):
     try:
         ws = get_worksheet(sheet_name)
@@ -137,7 +132,6 @@ def append_data(sheet_name, row_values):
     except Exception as e:
         st.error(f"Gagal menyimpan ke Google Sheets: {e}")
         return False
-
 
 # ==============================================================================
 # ENGINE CETAK LAPORAN PDF (KOP RESMI SMKN 4 TANGERANG)
@@ -154,7 +148,6 @@ class PDFLMS(FPDF):
         self.cell(
             0, 4, "Jl. Veteran No. 1A, Babakan, Kec. Tangerang, Kota Tangerang, Banten 15118", ln=True, align="C")
 
-        # Jarak ke bawah sebelum garis kop (turun ke koordinat Y = 32 dan 33)
         self.ln(3)
         self.set_line_width(0.7)
         self.line(10, 32, 200, 32)
@@ -167,7 +160,6 @@ class PDFLMS(FPDF):
         self.set_font("Helvetica", "I", 8)
         self.cell(
             0, 10, f"Sistem LMS SMKN 4 Tangerang | Halaman {self.page_no()}", align="R")
-
 
 def buat_pdf_harian(nama_guru, kelas, mapel, jam_ke, tanggal, materi, catatan):
     pdf = PDFLMS(orientation="P", unit="mm", format="A4")
@@ -219,7 +211,6 @@ def buat_pdf_harian(nama_guru, kelas, mapel, jam_ke, tanggal, materi, catatan):
 
     return bytes(pdf.output())
 
-
 def buat_pdf_rekap_bulanan(df_bulan, nama_guru, mapel, kelas, bulan_nama, tahun):
     pdf = PDFLMS(orientation="P", unit="mm", format="A4")
     pdf.add_page()
@@ -244,18 +235,15 @@ def buat_pdf_rekap_bulanan(df_bulan, nama_guru, mapel, kelas, bulan_nama, tahun)
     pdf.cell(0, 5, f": {bulan_nama} {tahun}", border=0, ln=True)
     pdf.ln(3)
 
-    # Header Tabel
     pdf.set_fill_color(225, 235, 245)
     pdf.set_font("Helvetica", "B", 8)
     pdf.cell(8, 7, "No", border=1, align="C", fill=True)
     pdf.cell(22, 7, "Tanggal", border=1, align="C", fill=True)
     pdf.cell(18, 7, "Jam Ke-", border=1, align="C", fill=True)
-    pdf.cell(73, 7, "Materi / Capaian Pembelajaran",
-             border=1, align="C", fill=True)
+    pdf.cell(73, 7, "Materi / Capaian Pembelajaran", border=1, align="C", fill=True)
     pdf.cell(69, 7, "Catatan / Penugasan", border=1, align="C", fill=True)
     pdf.ln(7)
 
-    # Isi Tabel Rekap
     pdf.set_font("Helvetica", "", 8)
     no = 1
     for _, row in df_bulan.iterrows():
@@ -276,23 +264,92 @@ def buat_pdf_rekap_bulanan(df_bulan, nama_guru, mapel, kelas, bulan_nama, tahun)
     pdf.set_font("Helvetica", "", 9)
     col_w = 95
     pdf.cell(col_w, 5, "Mengetahui,", align="C")
-    pdf.cell(
-        col_w, 5, f"Tangerang, 30 {bulan_nama} {tahun}", align="C", ln=True)
+    pdf.cell(col_w, 5, f"Tangerang, 30 {bulan_nama} {tahun}", align="C", ln=True)
     pdf.cell(col_w, 5, "Kepala SMK Negeri 4 Tangerang", align="C")
     pdf.cell(col_w, 5, "Guru Mata Pelajaran,", align="C", ln=True)
 
     pdf.ln(18)
     pdf.set_font("Helvetica", "B", 9)
-    pdf.cell(
-        col_w, 5, "( ................................................ )", align="C")
+    pdf.cell(col_w, 5, "( ................................................ )", align="C")
     pdf.cell(col_w, 5, f"{nama_guru}", align="C", ln=True)
     pdf.set_font("Helvetica", "", 8)
     pdf.cell(col_w, 4, "NIP. ............................................", align="C")
-    pdf.cell(col_w, 4, "NIP. ............................................",
-             align="C", ln=True)
+    pdf.cell(col_w, 4, "NIP. ............................................", align="C", ln=True)
 
     return bytes(pdf.output())
 
+# --- FUNGSI CETAK PDF PRESENSI HARIAN ---
+def buat_pdf_presensi_harian(nama_guru, kelas, mapel, tanggal, data_presensi_dict):
+    pdf = PDFLMS(orientation="P", unit="mm", format="A4")
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 6, "DAFTAR HADIR SISWA (PRESENSI HARIAN)", ln=True, align="C")
+    pdf.ln(3)
+
+    pdf.set_font("Helvetica", "", 9)
+    col_w = 95
+    pdf.cell(28, 5, "Mata Pelajaran", border=0)
+    pdf.cell(67, 5, f": {mapel}", border=0)
+    pdf.cell(25, 5, "Kelas", border=0)
+    pdf.cell(0, 5, f": {kelas}", border=0, ln=True)
+
+    pdf.cell(28, 5, "Guru Pengampu", border=0)
+    pdf.cell(67, 5, f": {nama_guru}", border=0)
+    pdf.cell(25, 5, "Hari / Tanggal", border=0)
+    pdf.cell(0, 5, f": {tanggal}", border=0, ln=True)
+    pdf.ln(4)
+
+    # Header Tabel Presensi
+    pdf.set_fill_color(225, 235, 245)
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.cell(12, 6.5, "No", border=1, align="C", fill=True)
+    pdf.cell(133, 6.5, "Nama Lengkap Siswa", border=1, align="C", fill=True)
+    pdf.cell(45, 6.5, "Keterangan", border=1, align="C", fill=True)
+    pdf.ln(6.5)
+
+    pdf.set_font("Helvetica", "", 8.5)
+    hadir = sakit = izin = alpa = 0
+
+    for idx, (nama, stt) in enumerate(data_presensi_dict.items(), 1):
+        pdf.cell(12, 5.5, str(idx), border=1, align="C")
+        pdf.cell(133, 5.5, f"  {nama}", border=1)
+        
+        # Penanda visual status
+        status_clean = str(stt).strip().capitalize()
+        pdf.cell(45, 5.5, status_clean, border=1, align="C")
+        pdf.ln(5.5)
+
+        if status_clean == "Hadir":
+            hadir += 1
+        elif status_clean == "Sakit":
+            sakit += 1
+        elif status_clean == "Izin":
+            izin += 1
+        elif status_clean == "Alpa":
+            alpa += 1
+
+    # Rekapitulasi Presensi
+    pdf.ln(4)
+    pdf.set_font("Helvetica", "B", 8.5)
+    pdf.set_fill_color(245, 245, 245)
+    rekap_teks = f"Rekapitulasi: Hadir = {hadir}  |  Sakit = {sakit}  |  Izin = {izin}  |  Alpa = {alpa}  |  Total = {len(data_presensi_dict)} Siswa"
+    pdf.cell(0, 6, rekap_teks, border=1, align="C", fill=True)
+
+    # Tanda Tangan
+    pdf.ln(8)
+    pdf.set_font("Helvetica", "", 9)
+    pdf.cell(115, 5, "", border=0)
+    pdf.cell(0, 5, f"Tangerang, {tanggal}", ln=True, align="C")
+    pdf.cell(115, 5, "", border=0)
+    pdf.cell(0, 5, "Guru Mata Pelajaran,", ln=True, align="C")
+    pdf.ln(18)
+    pdf.cell(115, 5, "", border=0)
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.cell(0, 5, nama_guru, ln=True, align="C")
+
+    return bytes(pdf.output())
 
 # --- SIDEBAR NAVIGASI ---
 st.sidebar.title("🏫 LMS SMK (Cloud Drive)")
@@ -420,17 +477,19 @@ if role == "Guru":
                 else:
                     st.info("Basis data riwayat agenda di cloud masih kosong.")
 
-    # --- MODUL 2: PRESENSI SISWA ---
+    # --- MODUL 2: PRESENSI SISWA & CETAK PDF HARIAN ---
     elif menu_guru == "Presensi Siswa":
         st.header("📋 Presensi Kehadiran Siswa (Tersimpan di Google Drive)")
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
         with col1:
+            guru_presensi = st.text_input("Guru Pengampu", value="Rina Nurmaladewi, S.Pd")
+        with col2:
             tgl_absen = st.date_input(
                 "Tanggal Presensi", value=date.today(), key="tgl_absen")
-        with col2:
+        with col3:
             mapel_absen = st.selectbox(
                 "Mata Pelajaran", DAFTAR_MAPEL, key="mapel_absen")
-        with col3:
+        with col4:
             kelas_absen = st.selectbox(
                 "Pilih Kelas", DAFTAR_KELAS, key="kls_absen")
 
@@ -448,8 +507,7 @@ if role == "Guru":
                     "Status", ["Hadir", "Sakit", "Izin", "Alpa"], key=f"status_{kelas_absen}_{siswa}", label_visibility="collapsed"
                 )
 
-            submit_absen = st.form_submit_button(
-                "Simpan Presensi ke Google Drive")
+            submit_absen = st.form_submit_button("Simpan Presensi ke Google Drive")
             if submit_absen:
                 ws = get_worksheet("presensi")
                 baris_baru = []
@@ -457,13 +515,69 @@ if role == "Guru":
                     baris_baru.append(
                         [str(tgl_absen), mapel_absen, kelas_absen, nama, stt])
                 ws.append_rows(baris_baru)
-                st.success(
-                    f"Presensi {kelas_absen} berhasil diunggah permanen ke Google Sheets!")
+                st.session_state["terakhir_presensi"] = absensi_input
+                st.success(f"Presensi {kelas_absen} berhasil diunggah permanen ke Google Sheets!")
 
-        st.subheader(f"Rekap Presensi {kelas_absen}")
+        # --- FITUR CETAK PRESENSI PDF HARIAN ---
+        st.write("---")
+        st.subheader("🖨️ Cetak Presensi Harian (PDF)")
+        c_p1, c_p2 = st.columns(2)
+
+        with c_p1:
+            st.caption("Cetak langsung dari formulir presensi yang sedang aktif/diisi di atas:")
+            pdf_bytes_aktif = buat_pdf_presensi_harian(
+                nama_guru=guru_presensi,
+                kelas=kelas_absen,
+                mapel=mapel_absen,
+                tanggal=str(tgl_absen),
+                data_presensi_dict=absensi_input
+            )
+            st.download_button(
+                label=f"📄 Unduh PDF Presensi Hari Ini ({kelas_absen})",
+                data=pdf_bytes_aktif,
+                file_name=f"Presensi_{kelas_absen}_{tgl_absen}.pdf",
+                mime="application/pdf",
+                key="btn_unduh_presensi_aktif"
+            )
+
+        with c_p2:
+            st.caption("Atau cetak dari data riwayat yang tersimpan di Google Sheets:")
+            if st.button("Tarik Data Cloud & Cetak PDF"):
+                df_absen_cloud = read_data("presensi")
+                if not df_absen_cloud.empty:
+                    df_filter_cloud = df_absen_cloud[
+                        (df_absen_cloud.iloc[:, 0].astype(str) == str(tgl_absen)) &
+                        (df_absen_cloud.iloc[:, 2].astype(str) == str(kelas_absen))
+                    ]
+                    if not df_filter_cloud.empty:
+                        data_cloud_dict = {}
+                        for _, row in df_filter_cloud.iterrows():
+                            data_cloud_dict[row.iloc[3]] = row.iloc[4]
+                        
+                        pdf_bytes_cloud = buat_pdf_presensi_harian(
+                            nama_guru=guru_presensi,
+                            kelas=kelas_absen,
+                            mapel=mapel_absen,
+                            tanggal=str(tgl_absen),
+                            data_presensi_dict=data_cloud_dict
+                        )
+                        st.download_button(
+                            label=f"📄 Unduh PDF Presensi Terarsip ({tgl_absen})",
+                            data=pdf_bytes_cloud,
+                            file_name=f"Presensi_Arsip_{kelas_absen}_{tgl_absen}.pdf",
+                            mime="application/pdf",
+                            key="btn_unduh_presensi_cloud"
+                        )
+                    else:
+                        st.warning(f"Tidak ada riwayat presensi tersimpan untuk {kelas_absen} pada tanggal {tgl_absen}.")
+                else:
+                    st.info("Basis data presensi di cloud masih kosong.")
+
+        st.subheader(f"Riwayat Presensi Tersimpan - {kelas_absen}")
         df_absen = read_data("presensi")
-        if not df_absen.empty and 'kelas' in df_absen.columns:
-            df_filter = df_absen[df_absen['kelas'] == kelas_absen]
+        if not df_absen.empty and len(df_absen.columns) >= 3:
+            kolom_kls = df_absen.columns[2]
+            df_filter = df_absen[df_absen[kolom_kls] == kelas_absen]
             st.dataframe(df_filter.iloc[::-1], use_container_width=True)
 
     # --- MODUL 3: MANAJEMEN MATERI ---
@@ -571,7 +685,7 @@ else:
             st.info("Belum ada materi yang tersedia.")
 
     elif menu_siswa == "Ujian Online (CBT)":
-        st.header("✍️ Ujian Online")
+        st.header("✍️️ Ujian Online")
 
         col_s1, col_s2, col_s3 = st.columns(3)
         kelas_siswa = col_s1.selectbox("Kelas:", DAFTAR_KELAS)
